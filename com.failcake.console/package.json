@@ -1,0 +1,16 @@
+{
+  "name": "com.failcake.console",
+  "displayName": "FailCake Console",
+  "version": "0.0.1",
+  "unity": "6000.5",
+  "description": "Custom Console. Inspired in source engine",
+  "type": "library",
+  "keywords": [
+    "tools",
+    "console"
+  ],
+  "author": {
+    "name": "FailCake",
+    "url": "https://github.com/edunad/FailCake.Console"
+  }
+}

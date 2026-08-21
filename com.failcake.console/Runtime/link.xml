@@ -1,0 +1,4 @@
+<linker>
+  <assembly fullname="FailCake.Console" preserve="all" />
+  <assembly fullname="FailCake.Console.PurrNet" preserve="all" />
+</linker>

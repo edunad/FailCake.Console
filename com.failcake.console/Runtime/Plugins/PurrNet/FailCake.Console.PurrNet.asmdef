@@ -1,0 +1,17 @@
+{
+    "name": "FailCake.Console.PurrNet",
+    "rootNamespace": "FailCake.Console.Plugins",
+    "references": [
+        "GUID:43acbec5be524af478864bc10a1c6910",
+        "GUID:6e20f757a1bae164fa42750dd2b27dcb"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
