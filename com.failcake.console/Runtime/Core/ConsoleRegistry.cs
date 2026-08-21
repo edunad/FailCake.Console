@@ -30,7 +30,7 @@ namespace FailCake.Console
             #if UNITY_EDITOR
             ConsoleRegistry.ScanTypeCache();
             #else
-            foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies()) ConRegistry.ScanAssembly(asm);
+            foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies()) ConsoleRegistry.ScanAssembly(asm);
             #endif
 
             ConsoleRegistry.BindPendingCallbacks();
@@ -80,7 +80,7 @@ namespace FailCake.Console
             ConsoleRegistry.REMOTE_STUBS.Clear();
         }
 
-        #region PRIVATE METHODS
+        #region PRIVATE
 
         #if UNITY_EDITOR
         private static void ScanTypeCache() {

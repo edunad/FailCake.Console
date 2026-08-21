@@ -115,7 +115,7 @@ namespace FailCake.Console
 
                 if (!Console.IS_SERVER_PROCESS && context.source != ConSource.Remote && Console.IsMultiplayer())
                 {
-                    ConsoleOutput.Add($"Can't change replicated ConVar {cv.name}. Server enforces: \"{cv.GetString()}\"");
+                    ConsoleOutput.Add($"Can't change replicated ConsoleVar {cv.name}. Server enforces: \"{cv.GetString()}\"");
                     return;
                 }
             }

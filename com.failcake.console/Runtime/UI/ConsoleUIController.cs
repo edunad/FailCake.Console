@@ -19,7 +19,7 @@ namespace FailCake.Console
         #region STATIC
 
         private static readonly Color PANEL_BG = new Color(0.14f, 0.14f, 0.14f, 0.95f);
-        private static readonly Color INPUT_BG = new Color(0.12f, 0.12f, 0.12f, 1f);
+        private static readonly Color INPUT_BG = new Color(0.08f, 0.08f, 0.08f, 1f);
         private static readonly Color INFO_COLOR = new Color(0.55f, 0.55f, 0.55f, 1f);
         private static readonly Color PLACEHOLDER_COLOR = new Color(0.48f, 0.48f, 0.48f, 1f);
         private static readonly Color INPUT_COLOR = new Color(0.95f, 0.95f, 0.95f, 1f);
@@ -30,7 +30,7 @@ namespace FailCake.Console
         private static readonly Color SUGGEST_TITLE = new Color(0.9f, 0.9f, 0.9f, 1f);
         private static readonly Color SUGGEST_VAL_COLOR = new Color(0.4f, 0.8f, 0.4f, 1f);
 
-        private static readonly Color LOG_SEPARATOR_BG = new Color(0.07f, 0.07f, 0.07f, 1f);
+        private static readonly Color LOG_SEPARATOR_BG = Color.black;
         private static readonly Color LOG_ROW_BG_1 = new Color(0.11f, 0.11f, 0.11f, 1f);
         private static readonly Color LOG_ROW_BG_2 = new Color(0.095f, 0.095f, 0.095f, 1f);
 
@@ -44,6 +44,7 @@ namespace FailCake.Console
         private static readonly Color SCROLLBAR_BG = new Color(0.09f, 0.09f, 0.09f, 1f);
         private static readonly Color SCROLLBAR_HANDLE = new Color(0.22f, 0.22f, 0.23f, 1f);
 
+        private const int FONT_SIZE = 13;
         private const int MAX_SUGGESTIONS = 10;
         private const int MAX_HISTORY = 64;
 
@@ -58,9 +59,13 @@ namespace FailCake.Console
             if (ConsoleUIController.CACHED_FONT) return ConsoleUIController.CACHED_FONT;
 
             Font font = Resources.Load<Font>("Fonts/lucon");
-            if (!font) font = Font.CreateDynamicFontFromOSFont("Lucida Console", 14);
+            if (!font) font = Font.CreateDynamicFontFromOSFont("Lucida Console", ConsoleUIController.FONT_SIZE);
             if (font) ConsoleUIController.CACHED_FONT = TMP_FontAsset.CreateFontAsset(font);
+
             if (!ConsoleUIController.CACHED_FONT) ConsoleUIController.CACHED_FONT = TMP_Settings.defaultFontAsset;
+            ConsoleUIController.CACHED_FONT.material.EnableKeyword("OUTLINE_ON");
+            ConsoleUIController.CACHED_FONT.material.SetFloat("_OutlineWidth", 0.1f);
+            ConsoleUIController.CACHED_FONT.material.SetColor("_OutlineColor", Color.black);
 
             return ConsoleUIController.CACHED_FONT;
         }
@@ -309,12 +314,10 @@ namespace FailCake.Console
                     row.root.SetActive(true);
                     row.background.color = i == this._suggestionIndex ? ConsoleUIController.SUGGEST_BG_SELECTED : ConsoleUIController.SUGGEST_BG_NORMAL;
 
-                    if (entry is ConsoleCommand cmd)
-                        row.titleText.text = $"{entry.name} <color=#{ConsoleUIController.ToHex(ConsoleUIController.INFO_COLOR)}>{cmd.GetSignature()}</color>";
-                    else if (entry is ConsoleVar cv)
-                        row.titleText.text = $"{entry.name} <color=#{ConsoleUIController.ToHex(ConsoleUIController.SUGGEST_VAL_COLOR)}>{cv.GetString()}</color>";
-                    else
-                        row.titleText.text = entry.name;
+                    row.titleText.text = entry switch {
+                        ConsoleVar cv => $"{entry.name} <color=#{ConsoleUIController.ToHex(ConsoleUIController.SUGGEST_VAL_COLOR)}>{cv.GetString()}</color>",
+                        var _         => entry.name
+                    };
 
                     if (string.IsNullOrEmpty(entry.help))
                         row.descText.gameObject.SetActive(false);
@@ -539,13 +542,6 @@ namespace FailCake.Console
             Image rowBg = rowGo.AddComponent<Image>();
             rowBg.color = ConsoleUIController.LOG_ROW_BG_1;
 
-            GameObject sepGo = ConsoleUIController.CreateRect("SeparatorLine", rowGo.transform, new Vector2(0, 0), new Vector2(1, 0), Vector2.zero, new Vector2(0, 1f));
-            Image sepImg = sepGo.AddComponent<Image>();
-            sepImg.color = ConsoleUIController.LOG_SEPARATOR_BG;
-
-            LayoutElement sepLayout = sepGo.AddComponent<LayoutElement>();
-            sepLayout.ignoreLayout = true;
-
             VerticalLayoutGroup rowVlg = rowGo.AddComponent<VerticalLayoutGroup>();
             rowVlg.padding = new RectOffset(188, 8, 4, 4);
             rowVlg.childControlWidth = true;
@@ -561,21 +557,32 @@ namespace FailCake.Console
             Image timeBg = timeBgGo.AddComponent<Image>();
             timeBg.color = ConsoleUIController.LOG_TIME_BG;
 
+            GameObject timeBgSplitGo = ConsoleUIController.CreateRect("TimeBgSplit", leftCol.transform, new Vector2(0, 0), new Vector2(0, 1), new Vector2(0, 0), new Vector2(-2, 0));
+            Image timeBgSplit = timeBgSplitGo.AddComponent<Image>();
+            timeBgSplit.color = Color.black;
+
             GameObject catBgGo = ConsoleUIController.CreateRect("CatBg", leftCol.transform, new Vector2(0, 0), new Vector2(0, 1), new Vector2(80, 0), new Vector2(180, 0));
             Image catBg = catBgGo.AddComponent<Image>();
             catBg.color = ConsoleUIController.LOG_CAT_BG;
 
-            GameObject timeGo = ConsoleUIController.CreateRect("Time", leftCol.transform, new Vector2(0, 0), new Vector2(0, 1), new Vector2(8, 4), new Vector2(80, -4));
+            GameObject timeGo = ConsoleUIController.CreateRect("Time", leftCol.transform, new Vector2(0, 0), new Vector2(0, 1), new Vector2(8, 5), new Vector2(80, -5));
             TMP_Text timeText = timeGo.AddComponent<TextMeshProUGUI>();
-            this.StyleText(timeText, 14, ConsoleUIController.LOG_TIME_COLOR, TextAlignmentOptions.TopLeft);
+            this.StyleText(timeText, ConsoleUIController.FONT_SIZE, ConsoleUIController.LOG_TIME_COLOR, TextAlignmentOptions.TopLeft);
 
             GameObject catGo = ConsoleUIController.CreateRect("Cat", leftCol.transform, new Vector2(0, 0), new Vector2(0, 1), new Vector2(80, 4), new Vector2(172, -4));
             TMP_Text catText = catGo.AddComponent<TextMeshProUGUI>();
-            this.StyleText(catText, 14, ConsoleUIController.LOG_CAT_COLOR, TextAlignmentOptions.TopRight);
+            this.StyleText(catText, ConsoleUIController.FONT_SIZE, ConsoleUIController.LOG_CAT_COLOR, TextAlignmentOptions.TopRight);
 
             GameObject msgGo = ConsoleUIController.CreateRect("Msg", rowGo.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             TMP_Text msgText = msgGo.AddComponent<TextMeshProUGUI>();
-            this.StyleText(msgText, 14, ConsoleUIController.LOG_MSG_COLOR, TextAlignmentOptions.TopLeft);
+            this.StyleText(msgText, ConsoleUIController.FONT_SIZE, ConsoleUIController.LOG_MSG_COLOR, TextAlignmentOptions.TopLeft);
+
+            GameObject sepGo = ConsoleUIController.CreateRect("SeparatorLine", rowGo.transform, new Vector2(0, 0), new Vector2(1, 0), Vector2.zero, new Vector2(0, 1f));
+            Image sepImg = sepGo.AddComponent<Image>();
+            sepImg.color = ConsoleUIController.LOG_SEPARATOR_BG;
+
+            LayoutElement sepLayout = sepGo.AddComponent<LayoutElement>();
+            sepLayout.ignoreLayout = true;
 
             return new VirtualRow {
                 root = rowGo,
@@ -654,7 +661,7 @@ namespace FailCake.Console
 
             GameObject textGo = ConsoleUIController.CreateRect("Text", go.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             this._overlayText = textGo.AddComponent<TextMeshProUGUI>();
-            this.StyleText(this._overlayText, 14, Color.white, TextAlignmentOptions.TopLeft);
+            this.StyleText(this._overlayText, ConsoleUIController.FONT_SIZE, Color.white, TextAlignmentOptions.TopLeft);
             this._overlayText.raycastTarget = false;
         }
 
@@ -760,7 +767,7 @@ namespace FailCake.Console
 
                 GameObject titleGo = ConsoleUIController.CreateRect("Title", rowGo.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
                 TMP_Text titleText = titleGo.AddComponent<TextMeshProUGUI>();
-                this.StyleText(titleText, 14, ConsoleUIController.SUGGEST_TITLE, TextAlignmentOptions.TopLeft);
+                this.StyleText(titleText, ConsoleUIController.FONT_SIZE, ConsoleUIController.SUGGEST_TITLE, TextAlignmentOptions.TopLeft);
                 titleText.fontStyle = FontStyles.Bold;
 
                 GameObject descGo = ConsoleUIController.CreateRect("Desc", rowGo.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
@@ -788,24 +795,17 @@ namespace FailCake.Console
 
             GameObject prefixGo = ConsoleUIController.CreateRect("Prefix", inputGo.transform, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(8f, 0f), new Vector2(24f, 0f));
             TMP_Text prefixText = prefixGo.AddComponent<TextMeshProUGUI>();
-            this.StyleText(prefixText, 14, ConsoleUIController.PLACEHOLDER_COLOR, TextAlignmentOptions.Left);
+            this.StyleText(prefixText, ConsoleUIController.FONT_SIZE, ConsoleUIController.PLACEHOLDER_COLOR, TextAlignmentOptions.Left);
             prefixText.alignment = TextAlignmentOptions.MidlineLeft;
             prefixText.text = ">";
             prefixText.raycastTarget = false;
 
             GameObject textArea = ConsoleUIController.CreateRect("Text Area", inputGo.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(30f, 0f), new Vector2(-8f, 0f));
 
-            GameObject placeholderGo = ConsoleUIController.CreateRect("Placeholder", textArea.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            TMP_Text placeholder = placeholderGo.AddComponent<TextMeshProUGUI>();
-            this.StyleText(placeholder, 14, ConsoleUIController.PLACEHOLDER_COLOR, TextAlignmentOptions.Left);
-            placeholder.alignment = TextAlignmentOptions.MidlineLeft;
-            placeholder.text = "Command...";
-            placeholder.raycastTarget = false;
-
             GameObject textGo = ConsoleUIController.CreateRect("Text", textArea.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             TMP_Text inputText = textGo.AddComponent<TextMeshProUGUI>();
-            this.StyleText(inputText, 14, ConsoleUIController.INPUT_COLOR, TextAlignmentOptions.Left);
-            inputText.alignment = TextAlignmentOptions.MidlineLeft;
+            this.StyleText(inputText, ConsoleUIController.FONT_SIZE, ConsoleUIController.INPUT_COLOR, TextAlignmentOptions.Left);
+            inputText.alignment = TextAlignmentOptions.CaplineLeft;
             inputText.raycastTarget = false;
 
             this._inputField = inputGo.AddComponent<TMP_InputField>();
@@ -815,11 +815,9 @@ namespace FailCake.Console
             this._inputField.navigation = new Navigation { mode = Navigation.Mode.None };
             this._inputField.textComponent = inputText;
             this._inputField.textViewport = (RectTransform)textArea.transform;
-            this._inputField.placeholder = placeholder;
 
-            this._inputField.customCaretColor = true;
-            this._inputField.caretColor = ConsoleUIController.INPUT_COLOR;
-
+            this._inputField.selectionColor = new Color(0.22F, 0.25F, 0.30F);
+            this._inputField.caretColor = Color.white;
             this._inputField.onValueChanged.AddListener(this.OnInputChanged);
         }
 
