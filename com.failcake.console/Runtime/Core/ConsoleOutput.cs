@@ -39,9 +39,16 @@ namespace FailCake.Console
                 this.text = text;
                 this.color = color;
             }
+
+            public Line(string timestamp, string text, string category, Color? color) {
+                this.timestamp = timestamp;
+                this.category = string.IsNullOrEmpty(category) ? "" : category;
+                this.text = text;
+                this.color = color;
+            }
         }
 
-        public static void Add(string text, string category = "ENGINE", Color? color = null) {
+        public static void Add(string text, string category = "CONSOLE", Color? color = null) {
             if (string.IsNullOrEmpty(text)) return;
             ConsoleOutput.PENDING.Enqueue(new Line(text, category, color));
             if (ConsoleOutput.CAPTURE != null) ConsoleOutput.CAPTURE.Add(text);

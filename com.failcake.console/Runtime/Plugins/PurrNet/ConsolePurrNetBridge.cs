@@ -84,7 +84,7 @@ namespace FailCake.Console.Plugins
             ConsoleEntry entry = ConsoleRegistry.Find(cmd.Arg(0));
             if (entry == null || !entry.HasFlag(FCVAR.SERVER_CAN_EXECUTE)) return;
 
-            Console.OnCLCommand(cmd, null);
+            Console.OnCLCommand?.Invoke(cmd, null);
         }
 
         #endregion

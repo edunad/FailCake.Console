@@ -405,7 +405,6 @@ namespace FailCake.Console
             foreach (ConsoleOutput.Line line in lines)
             {
                 this._masterLogs.Add(line);
-
                 this._overlayEntries.Add(new OverlayEntry {
                     text = line.text,
                     color = line.color,
@@ -557,9 +556,6 @@ namespace FailCake.Console
             Image timeBg = timeBgGo.AddComponent<Image>();
             timeBg.color = ConsoleUIController.LOG_TIME_BG;
 
-            GameObject timeBgSplitGo = ConsoleUIController.CreateRect("TimeBgSplit", leftCol.transform, new Vector2(0, 0), new Vector2(0, 1), new Vector2(0, 0), new Vector2(-2, 0));
-            Image timeBgSplit = timeBgSplitGo.AddComponent<Image>();
-            timeBgSplit.color = Color.black;
 
             GameObject catBgGo = ConsoleUIController.CreateRect("CatBg", leftCol.transform, new Vector2(0, 0), new Vector2(0, 1), new Vector2(80, 0), new Vector2(180, 0));
             Image catBg = catBgGo.AddComponent<Image>();
@@ -812,6 +808,7 @@ namespace FailCake.Console
             this._inputField.lineType = TMP_InputField.LineType.SingleLine;
             this._inputField.characterLimit = 0;
             this._inputField.richText = false;
+            this._inputField.onFocusSelectAll = false;
             this._inputField.navigation = new Navigation { mode = Navigation.Mode.None };
             this._inputField.textComponent = inputText;
             this._inputField.textViewport = (RectTransform)textArea.transform;

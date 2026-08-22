@@ -13,35 +13,31 @@ namespace FailCake.Console.Plugins
     public sealed class ConsolePurrNetPlugin : ConsolePlugin
     {
         protected override void OnLoad() {
-            Console.IsMultiplayer = ConsolePurrNetPlugin.GetIsMultiplayer;
-            Console.OnSVCommand = ConsolePurrNetPlugin.HandleSVCommand;
-            Console.OnCLCommand = ConsolePurrNetPlugin.HandleCLCommand;
+            // SETUP -----
+            Console.IsMultiplayer = () => NetworkManager.main && (NetworkManager.main.isServer || NetworkManager.main.isClient);
+            Console.OnSVCommand = (command, userData) => {
+                if (!Console.IsMultiplayer()) return (true, Console.ExecuteCaptured(command.GetCommandString(), ConsoleContext.ServerLocal(userData)));
+                if (!ConsolePurrNetBridge.BRIDGE || !ConsolePurrNetBridge.BRIDGE.isSpawned) return (false, "Not connected to server.");
 
+                ConsolePurrNetBridge.BRIDGE.ExecConServer(command.GetCommandString());
+                return (true, null);
+            };
+
+            Console.OnCLCommand = (command, userData) => (true, Console.ExecuteCaptured(command.GetCommandString(), ConsoleContext.ClientLocal(userData)));
+            // ----------------
+
+            // EVENTS --------
             NetworkManager.onAnyServerConnectionState += ConsolePurrNetPlugin.OnServerConnectionState;
+            // ----------------
         }
 
         protected override void OnUnload() {
+            // EVENTS --------
             NetworkManager.onAnyServerConnectionState -= ConsolePurrNetPlugin.OnServerConnectionState;
+            // ----------------
         }
 
         #region PRIVATE
-
-        private static bool GetIsMultiplayer() {
-            NetworkManager manager = NetworkManager.main;
-            return manager && (manager.isServer || manager.isClient);
-        }
-
-        private static (bool, string) HandleSVCommand(CCommand command, object userData) {
-            if (!Console.IsMultiplayer()) return (true, Console.ExecuteCaptured(command.GetCommandString(), ConsoleContext.ServerLocal(userData)));
-            if (!ConsolePurrNetBridge.BRIDGE || !ConsolePurrNetBridge.BRIDGE.isSpawned) return (false, "Not connected to server.");
-
-            ConsolePurrNetBridge.BRIDGE.ExecConServer(command.GetCommandString());
-            return (true, null);
-        }
-
-        private static (bool, string) HandleCLCommand(CCommand command, object userData) {
-            return (true, Console.ExecuteCaptured(command.GetCommandString(), ConsoleContext.ClientLocal(userData)));
-        }
 
         private static void OnServerConnectionState(ConnectionState state) {
             if (state != ConnectionState.Connected || ConsolePurrNetBridge.BRIDGE) return;

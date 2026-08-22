@@ -10,10 +10,10 @@ namespace FailCake.Console
 {
     public static class Console
     {
-        public static Func<CCommand, object, (bool success, string response)> OnCLCommand = Console.DefaultCLCommand;
-        public static Func<CCommand, object, (bool success, string response)> OnSVCommand = Console.DefaultSVCommand;
-        public static Func<object, bool> IsAdmin = Console.DefaultIsAdmin;
-        public static Func<bool> IsMultiplayer = Console.DefaultIsMultiplayer;
+        public static Func<CCommand, object, (bool success, string response)> OnCLCommand;
+        public static Func<CCommand, object, (bool success, string response)> OnSVCommand;
+        public static Func<object, bool> IsAdmin;
+        public static Func<bool> IsMultiplayer;
 
         #if UNITY_SERVER
         public const bool IS_SERVER_PROCESS = true;
@@ -35,8 +35,8 @@ namespace FailCake.Console
             return ConsoleDispatcher.ExecuteCaptured(line, context);
         }
 
-        public static void Msg(string text) {
-            ConsoleOutput.Add(text);
+        public static void Msg(string text, string category = "ENGINE") {
+            ConsoleOutput.Add(text, category);
         }
 
         public static void Warn(string text, string category = "ENGINE") {
@@ -97,22 +97,6 @@ namespace FailCake.Console
             }
         }
 
-        private static (bool, string) DefaultCLCommand(CCommand command, object userData) {
-            return (true, Console.ExecuteCaptured(command.GetCommandString(), ConsoleContext.ClientLocal(userData)));
-        }
-
-        private static (bool, string) DefaultSVCommand(CCommand command, object userData) {
-            return (true, Console.ExecuteCaptured(command.GetCommandString(), ConsoleContext.ServerLocal(userData)));
-        }
-
-        private static bool DefaultIsAdmin(object userData) {
-            return !Console.IsMultiplayer();
-        }
-
-        private static bool DefaultIsMultiplayer() {
-            return false;
-        }
-
         private static bool IsManifestVisible(ConsoleEntry entry) {
             return !entry.HasFlag(FCVAR.HIDDEN);
         }
@@ -132,21 +116,47 @@ namespace FailCake.Console
         private static void OnUnityLog(string condition, string stackTrace, LogType type) {
             if (string.IsNullOrEmpty(condition)) return;
 
+            (string text, string category) = Console.ParseLogCategory(condition);
+
             switch (type)
             {
                 case LogType.Warning:
-                    Console.Warn(condition);
+                    Console.Warn(text, category);
                     break;
                 case LogType.Error:
                 case LogType.Assert:
                 case LogType.Exception:
-                    Console.Error(condition);
+                    Console.Error(text, category);
                     break;
                 case LogType.Log:
                 default:
-                    Console.Msg(condition);
+                    Console.Msg(text, category);
                     break;
             }
+        }
+
+        private static (string text, string category) ParseLogCategory(string condition) {
+            int bracketStart = -1;
+
+            if (condition.StartsWith("<color="))
+            {
+                int tagEnd = condition.IndexOf('>');
+                if (tagEnd >= 0 && tagEnd + 1 < condition.Length && condition[tagEnd + 1] == '[') bracketStart = tagEnd + 1;
+            }
+            else if (condition.StartsWith("[")) bracketStart = 0;
+
+            if (bracketStart < 0) return (condition, "UNITY");
+
+            int bracketEnd = condition.IndexOf(']', bracketStart);
+            if (bracketEnd <= bracketStart) return (condition, "UNITY");
+
+            string category = condition.Substring(bracketStart + 1, bracketEnd - bracketStart - 1);
+
+            int textStart = bracketEnd + 1;
+            if (textStart < condition.Length && condition.IndexOf("</color>", textStart, StringComparison.Ordinal) == textStart) textStart += "</color>".Length;
+
+            string text = condition.Substring(textStart).TrimStart(' ', '\n');
+            return (text.Length == 0 ? condition : text, category.ToUpperInvariant());
         }
     }
 }

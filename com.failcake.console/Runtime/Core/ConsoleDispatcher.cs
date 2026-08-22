@@ -4,6 +4,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using UnityEngine;
 
 #endregion
 
@@ -57,7 +58,9 @@ namespace FailCake.Console
             {
                 if (context.source == ConSource.Local && !Console.IS_SERVER_PROCESS)
                 {
-                    (bool success, string response) = Console.OnSVCommand(cmd, context.userData);
+                    if (Console.OnSVCommand == null) throw new UnityException("Missing OnSVCommand");
+
+                    (bool success, string response) = Console.OnSVCommand.Invoke(cmd, context.userData);
                     if (!success && !string.IsNullOrEmpty(response)) ConsoleOutput.Add(response);
                     return;
                 }
@@ -107,13 +110,13 @@ namespace FailCake.Console
 
             if (cv.HasFlag(FCVAR.REPLICATED))
             {
-                if (context.source == ConSource.Remote && !Console.IsAdmin(context.userData))
+                if (context.source == ConSource.Remote && !(Console.IsAdmin?.Invoke(context.userData) ?? false))
                 {
                     ConsoleOutput.Add("You don't have permission to change this cvar.");
                     return;
                 }
 
-                if (!Console.IS_SERVER_PROCESS && context.source != ConSource.Remote && Console.IsMultiplayer())
+                if (!Console.IS_SERVER_PROCESS && context.source != ConSource.Remote && (Console.IsMultiplayer?.Invoke() ?? false))
                 {
                     ConsoleOutput.Add($"Can't change replicated ConsoleVar {cv.name}. Server enforces: \"{cv.GetString()}\"");
                     return;
