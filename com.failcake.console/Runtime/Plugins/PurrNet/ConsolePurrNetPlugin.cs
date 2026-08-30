@@ -2,56 +2,70 @@
 
 using PurrNet;
 using PurrNet.Transports;
-using UnityEngine;
-using Object = UnityEngine.Object;
 
 #endregion
 
-namespace FailCake.Console.Plugins
-{
-    [ConsolePlugin]
-    public sealed class ConsolePurrNetPlugin : ConsolePlugin
-    {
-        protected override void OnLoad() {
-            // SETUP -----
-            Console.IsMultiplayer = () => NetworkManager.main && (NetworkManager.main.isServer || NetworkManager.main.isClient);
-            Console.OnSVCommand = (command, userData) => {
-                if (!Console.IsMultiplayer()) return (true, Console.ExecuteCaptured(command.GetCommandString(), ConsoleContext.ServerLocal(userData)));
-                if (!ConsolePurrNetBridge.BRIDGE || !ConsolePurrNetBridge.BRIDGE.isSpawned) return (false, "Not connected to server.");
+namespace FailCake.Console.Plugins {
+	[ConsolePlugin]
+	public sealed class ConsolePurrNetPlugin : ConsolePlugin {
+		#region STATIC
 
-                ConsolePurrNetBridge.BRIDGE.ExecConServer(command.GetCommandString());
-                return (true, null);
-            };
+		private static void OnServerConnectionState(ConnectionState state) {
+			if (state == ConnectionState.Connected)
+				ConsolePurrNetBridge.HookReplicatedCVars();
+			else if (state == ConnectionState.Disconnected)
+				ConsolePurrNetBridge.UnhookReplicatedCVars();
+		}
 
-            Console.OnCLCommand = (command, userData) => (true, Console.ExecuteCaptured(command.GetCommandString(), ConsoleContext.ClientLocal(userData)));
-            // ----------------
+		private static void OnClientConnectionState(ConnectionState state) {
+			if (state == ConnectionState.Connected)
+				ConsolePurrNetBridge.RequestConSync();
+			else if (state == ConnectionState.Disconnected)
+				ConsoleRegistry.ClearRemoteStubs();
+		}
 
-            // EVENTS --------
-            NetworkManager.onAnyServerConnectionState += ConsolePurrNetPlugin.OnServerConnectionState;
-            // ----------------
-        }
+		private static bool IsMultiplayer() {
+			NetworkManager manager = NetworkManager.main;
+			return manager && (manager.isServer || manager.isClient);
+		}
 
-        protected override void OnUnload() {
-            // EVENTS --------
-            NetworkManager.onAnyServerConnectionState -= ConsolePurrNetPlugin.OnServerConnectionState;
-            // ----------------
-        }
+		private static (bool success, string response) ExecuteServerCommand(CCommand command, object userData) {
+			NetworkManager manager = NetworkManager.main;
+			if (!manager || !manager.isClient) return (false, "Not connected to server.");
 
-        #region PRIVATE
+			ConsolePurrNetBridge.ExecConServer(command.GetCommandString());
+			return (true, null);
+		}
 
-        private static void OnServerConnectionState(ConnectionState state) {
-            if (state != ConnectionState.Connected || ConsolePurrNetBridge.BRIDGE) return;
+		private static (bool success, string response) ExecuteClientCommand(CCommand command, object userData) {
+			return (true, Console.ExecuteCaptured(command.GetCommandString(), ConsoleContext.ClientLocal(userData)));
+		}
 
-            NetworkManager manager = NetworkManager.main;
-            if (!manager) return;
+		#endregion
 
-            GameObject go = new GameObject("Console.PurrNetBridge");
-            Object.DontDestroyOnLoad(go);
-            go.AddComponent<ConsolePurrNetBridge>();
+		protected override void OnLoad() {
+			Console.IsMultiplayer = ConsolePurrNetPlugin.IsMultiplayer;
+			Console.OnSVCommand = ConsolePurrNetPlugin.ExecuteServerCommand;
+			Console.OnCLCommand = ConsolePurrNetPlugin.ExecuteClientCommand;
 
-            manager.Spawn(go);
-        }
+			NetworkManager.onAnyServerConnectionState -= ConsolePurrNetPlugin.OnServerConnectionState;
+			NetworkManager.onAnyClientConnectionState -= ConsolePurrNetPlugin.OnClientConnectionState;
+			NetworkManager.onAnyServerConnectionState += ConsolePurrNetPlugin.OnServerConnectionState;
+			NetworkManager.onAnyClientConnectionState += ConsolePurrNetPlugin.OnClientConnectionState;
 
-        #endregion
-    }
+			NetworkManager manager = NetworkManager.main;
+			if (!manager) return;
+			if (manager.isServer) ConsolePurrNetPlugin.OnServerConnectionState(ConnectionState.Connected);
+			if (manager.isClient) ConsolePurrNetPlugin.OnClientConnectionState(ConnectionState.Connected);
+		}
+
+		protected override void OnUnload() {
+			NetworkManager.onAnyServerConnectionState -= ConsolePurrNetPlugin.OnServerConnectionState;
+			NetworkManager.onAnyClientConnectionState -= ConsolePurrNetPlugin.OnClientConnectionState;
+
+			ConsolePurrNetBridge.UnhookReplicatedCVars();
+			ConsoleRegistry.ClearRemoteStubs();
+			Console.ResetNetworkHandlers();
+		}
+	}
 }

@@ -23,8 +23,8 @@ namespace FailCake.Console
         }
 
         public static string ExecuteCaptured(string line, ConsoleContext context) {
-            List<string> buffer = new List<string>();
-            List<string> prev = ConsoleOutput.CAPTURE;
+            ConsoleOutput.CaptureBuffer buffer = new ConsoleOutput.CaptureBuffer();
+            ConsoleOutput.CaptureBuffer previous = ConsoleOutput.CAPTURE;
 
             ConsoleOutput.CAPTURE = buffer;
 
@@ -34,10 +34,10 @@ namespace FailCake.Console
             }
             finally
             {
-                ConsoleOutput.CAPTURE = prev;
+                ConsoleOutput.CAPTURE = previous;
             }
 
-            return string.Join("\n", buffer);
+            return buffer.GetText();
         }
 
         public static void ApplyReplicated(string name, string value) {
@@ -46,7 +46,7 @@ namespace FailCake.Console
         }
 
         private static void ExecuteOne(string line, ConsoleContext context) {
-            CCommand cmd = new CCommand(line);
+            CCommand cmd = new CCommand(line, context);
             if (cmd.argc == 0) return;
 
             if (context.echo) ConsoleOutput.Add($"] {line}");
@@ -54,17 +54,26 @@ namespace FailCake.Console
             string name = cmd.Arg(0);
             ConsoleEntry entry = ConsoleRegistry.Find(name);
 
-            if (entry is null or ConsoleStubEntry)
+            if (entry == null)
             {
-                if (context.source == ConSource.Local && !Console.IS_SERVER_PROCESS)
-                {
-                    if (Console.OnSVCommand == null) throw new UnityException("Missing OnSVCommand");
+                ConsoleOutput.Add($"Unknown command \"{name}\"");
+                return;
+            }
 
-                    (bool success, string response) = Console.OnSVCommand.Invoke(cmd, context.userData);
-                    if (!success && !string.IsNullOrEmpty(response)) ConsoleOutput.Add(response);
-                    return;
-                }
+            if (context.source == ConSource.Remote && !entry.HasFlag(FCVAR.SERVER))
+            {
+                ConsoleOutput.Add($"Unknown command \"{name}\"");
+                return;
+            }
 
+            if (!Console.IS_SERVER_PROCESS && entry.HasFlag(FCVAR.SERVER))
+            {
+                ConsoleDispatcher.ForwardToServer(cmd, context);
+                return;
+            }
+
+            if (entry is ConsoleStubEntry)
+            {
                 ConsoleOutput.Add($"Unknown command \"{name}\"");
                 return;
             }
@@ -95,33 +104,36 @@ namespace FailCake.Console
                 }
             }
 
-            if (!entry.HasFlag(FCVAR.ADMIN) || Console.IsAdmin(context.userData)) return true;
-            ConsoleOutput.Add("You don't have permission to run this command.");
+			#if UNITY_SERVER
+			if (entry.HasFlag(FCVAR.ADMIN) && !ConsoleDispatcher.HasAdminAccess(context)) {
+				ConsoleOutput.Add("You don't have permission to run this command.");
+				return false;
+			}
+			#endif
 
-            return false;
+            return true;
         }
 
         private static void HandleVar(ConsoleVar cv, CCommand cmd, ConsoleContext context) {
             if (cmd.argc == 1)
             {
-                ConsoleOutput.Add(cv.ToDisplayString());
+                Console.Response(cv.ToDisplayString());
                 return;
             }
 
-            if (cv.HasFlag(FCVAR.REPLICATED))
-            {
-                if (context.source == ConSource.Remote && !(Console.IsAdmin?.Invoke(context.userData) ?? false))
-                {
-                    ConsoleOutput.Add("You don't have permission to change this cvar.");
-                    return;
-                }
+			#if UNITY_SERVER
+			if (context.source == ConSource.Remote && !ConsoleDispatcher.HasAdminAccess(context)) {
+				ConsoleOutput.Add("You don't have permission to change this cvar.");
+				return;
+			}
+			#endif
 
-                if (!Console.IS_SERVER_PROCESS && context.source != ConSource.Remote && (Console.IsMultiplayer?.Invoke() ?? false))
+            if (cv.HasFlag(FCVAR.REPLICATED))
+                if (!Console.IS_SERVER_PROCESS && context.source != ConSource.Remote && Console.IsMultiplayer())
                 {
                     ConsoleOutput.Add($"Can't change replicated ConsoleVar {cv.name}. Server enforces: \"{cv.GetString()}\"");
                     return;
                 }
-            }
 
             string value = cmd.Arg(1);
             try
@@ -153,6 +165,20 @@ namespace FailCake.Console
             }
         }
 
+        private static void ForwardToServer(CCommand command, ConsoleContext context) {
+            if (Console.OnSVCommand == null) throw new UnityException("Missing OnSVCommand");
+
+            (bool success, string response) = Console.OnSVCommand.Invoke(command, context.userData);
+            if (!success && !string.IsNullOrEmpty(response)) ConsoleOutput.Add(response);
+        }
+
+		#if UNITY_SERVER
+		private static bool HasAdminAccess(ConsoleContext context) {
+			if (context.source == ConSource.ServerConsole) return true;
+			return context.source == ConSource.Remote && context.userData != null && Console.IsAdmin(context.userData);
+		}
+		#endif
+
         private static void PrintResult(object result) {
             switch (result)
             {
@@ -160,16 +186,16 @@ namespace FailCake.Console
                     return;
                 case string s:
                 {
-                    if (s.Length > 0) ConsoleOutput.Add(s);
+                    if (s.Length > 0) Console.Response(s);
                     return;
                 }
                 case IEnumerable ie:
                 {
-                    foreach (object item in ie) ConsoleOutput.Add(item != null ? item.ToString() : string.Empty);
+                    foreach (object item in ie) Console.Response(item != null ? item.ToString() : string.Empty);
                     return;
                 }
                 default:
-                    ConsoleOutput.Add(result.ToString());
+                    Console.Response(result.ToString());
                     break;
             }
         }
@@ -181,6 +207,12 @@ namespace FailCake.Console
             for (int i = 0; i < line.Length; i++)
             {
                 char c = line[i];
+                if (inQuote && c == '\\' && i + 1 < line.Length)
+                {
+                    sb.Append(c).Append(line[++i]);
+                    continue;
+                }
+
                 switch (c)
                 {
                     case '"':

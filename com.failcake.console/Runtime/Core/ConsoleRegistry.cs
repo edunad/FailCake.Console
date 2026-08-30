@@ -80,6 +80,14 @@ namespace FailCake.Console
             ConsoleRegistry.REMOTE_STUBS.Clear();
         }
 
+        internal static void Reset() {
+            ConsoleRegistry.ENTRIES.Clear();
+            ConsoleRegistry.REMOTE_STUBS.Clear();
+            ConsoleRegistry.PENDING_CALLBACKS.Clear();
+
+            ConsoleRegistry._scanned = false;
+        }
+
         #region PRIVATE
 
         #if UNITY_EDITOR
@@ -183,22 +191,23 @@ namespace FailCake.Console
             if (field != null) cv.SetValue(attr.defaultValue);
         }
 
-        private static bool HasInvalidParams(MethodInfo m) {
-            ParameterInfo[] ps = m.GetParameters();
-            bool hasCmdType = false;
-            foreach (ParameterInfo p in ps)
+        private static bool HasInvalidParams(MethodInfo method) {
+            ParameterInfo[] parameters = method.GetParameters();
+            bool hasCommand = false;
+            foreach (ParameterInfo parameter in parameters)
             {
-                if (p.IsOut || p.ParameterType.IsByRef) return true;
-                if (p.ParameterType == typeof(CCommand))
+                if (parameter.IsOut || parameter.ParameterType.IsByRef) return true;
+                if (parameter.ParameterType == typeof(CCommand))
                 {
-                    hasCmdType = true;
+                    if (hasCommand) return true;
+                    hasCommand = true;
                     continue;
                 }
 
-                if (!ConsoleParser.CanParse(p.ParameterType)) return true;
+                if (!ConsoleParser.CanParse(parameter.ParameterType)) return true;
             }
 
-            return hasCmdType && ps.Length != 1;
+            return false;
         }
 
         private static void ValidateName(string name) {

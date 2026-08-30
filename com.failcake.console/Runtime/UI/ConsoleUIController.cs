@@ -1,3 +1,4 @@
+#if !UNITY_SERVER
 #region
 
 using System;
@@ -117,7 +118,7 @@ namespace FailCake.Console
             public TMP_Text descText;
         }
 
-        private struct VirtualRow
+        private sealed class VirtualRow
         {
             public GameObject root;
             public RectTransform rectTransform;
@@ -167,6 +168,7 @@ namespace FailCake.Console
             {
                 Canvas.ForceUpdateCanvases();
                 this._scrollRect.normalizedPosition = Vector2.zero;
+                this.RefreshVirtualRows();
                 this._scrollToBottom = false;
             }
 
@@ -412,6 +414,12 @@ namespace FailCake.Console
                 });
             }
 
+			int excess = this._masterLogs.Count - ConsoleOutput.MAX_LINES;
+			if (excess > 0) {
+				this._masterLogs.RemoveRange(0, excess);
+				this._rowHeights.Clear();
+			}
+
             this.UpdateContentHeight();
             this.RefreshVirtualRows();
 
@@ -443,8 +451,9 @@ namespace FailCake.Console
             float msgWidth = this._contentRt.rect.width - ConsoleUIController.MSG_PADDING_X;
             if (msgWidth <= 16f) return ConsoleUIController.BASE_ROW_HEIGHT;
 
-            Vector2 prefSize = row.msgText.GetPreferredValues(line.text, msgWidth, 0f);
-            return Mathf.Max(ConsoleUIController.BASE_ROW_HEIGHT, prefSize.y + ConsoleUIController.MSG_PADDING_Y);
+			float messageHeight = row.msgText.GetPreferredValues(line.text, msgWidth, 0F).y;
+			float categoryHeight = row.catText.GetPreferredValues(line.category, row.catText.rectTransform.rect.width, 0F).y;
+			return Mathf.Max(ConsoleUIController.BASE_ROW_HEIGHT, Mathf.Max(messageHeight, categoryHeight) + ConsoleUIController.MSG_PADDING_Y);
         }
 
         private float GetRowHeight(int index) {
@@ -471,8 +480,7 @@ namespace FailCake.Console
                 return;
             }
 
-            float scrollY = this._contentRt.anchoredPosition.y;
-            scrollY = Mathf.Max(0f, scrollY);
+            float scrollY = Mathf.Max(0f, this._contentRt.rect.height - this._viewportRt.rect.height + this._contentRt.anchoredPosition.y);
 
             // Find starting index based on variable heights
             int startIndex = 0;
@@ -491,6 +499,7 @@ namespace FailCake.Console
             }
 
             int countToDisplay = Math.Min(ConsoleUIController.VISIBLE_BUFFER_COUNT, this._masterLogs.Count - startIndex);
+            bool heightChanged = false;
 
             for (int i = 0; i < this._pool.Count; i++)
             {
@@ -524,12 +533,18 @@ namespace FailCake.Console
                     if (!this._rowHeights.TryGetValue(dataIndex, out float currentH) || Mathf.Abs(currentH - finalRowHeight) > 0.5f)
                     {
                         this._rowHeights[dataIndex] = finalRowHeight;
-                        this.UpdateContentHeight();
+                        heightChanged = true;
                     }
                 }
                 else
                     row.root.SetActive(false);
             }
+
+            if (!heightChanged) return;
+            this.UpdateContentHeight();
+            foreach (VirtualRow row in this._pool)
+                if (row.root.activeSelf)
+                    row.rectTransform.anchoredPosition = new Vector2(0f, -this.GetYPositionForIndex(row.dataIndex));
         }
 
         private VirtualRow CreateVirtualRow() {
@@ -704,9 +719,9 @@ namespace FailCake.Console
             this._viewportRt = (RectTransform)viewport.transform;
             this._scrollRect.viewport = this._viewportRt;
 
-            this._logContent = ConsoleUIController.CreateRect("LogContent", viewport.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+            this._logContent = ConsoleUIController.CreateRect("LogContent", viewport.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), Vector2.zero, Vector2.zero);
             this._contentRt = (RectTransform)this._logContent.transform;
-            this._contentRt.pivot = new Vector2(0.5f, 1f);
+            this._contentRt.pivot = new Vector2(0.5f, 0f);
             this._scrollRect.content = this._contentRt;
 
             Image contentBg = this._logContent.AddComponent<Image>();
@@ -843,3 +858,4 @@ namespace FailCake.Console
         #endregion
     }
 }
+#endif

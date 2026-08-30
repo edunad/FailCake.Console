@@ -1,67 +1,72 @@
 #region
 
+using System;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 
 #endregion
 
-namespace FailCake.Console
-{
-    public sealed class ConsoleCommand : ConsoleEntry
-    {
-        public readonly MethodInfo method;
-        public readonly ParameterInfo[] parameters;
-        public readonly object[] defaults;
-        public readonly bool rawArgs;
+namespace FailCake.Console {
+	public sealed class ConsoleCommand : ConsoleEntry {
+		public readonly MethodInfo method;
+		public readonly ParameterInfo[] parameters;
 
-        internal ConsoleCommand(string name, string help, FCVAR flags, MethodInfo method) : base(name, help, flags) {
-            this.method = method;
-            this.parameters = method.GetParameters();
-            this.defaults = this.parameters.Select(ConsoleCommand.ParamDefault).ToArray();
-            this.rawArgs = this.parameters.Length == 1 && this.parameters[0].ParameterType == typeof(CCommand);
-        }
+		internal ConsoleCommand(string name, string help, FCVAR flags, MethodInfo method) : base(name, help, flags) {
+			this.method = method;
+			this.parameters = method.GetParameters();
+		}
 
-        public (object result, string error) Invoke(CCommand args) {
-            if (this.rawArgs) return (this.method.Invoke(null, new object[] { args }), null);
+		public (object result, string error) Invoke(CCommand command) {
+			if (command.argc - 1 < this.RequiredArgCount()) return (null, $"Usage: {this.GetSignature()}");
 
-            int provided = args.argc - 1;
-            if (provided < this.RequiredArgCount()) return (null, $"Usage: {this.GetSignature()}");
+			object[] bound = new object[this.parameters.Length];
+			int argIndex = 1;
+			for (int i = 0; i < this.parameters.Length; i++) {
+				ParameterInfo parameter = this.parameters[i];
+				if (parameter.ParameterType == typeof(CCommand)) {
+					bound[i] = command;
+					continue;
+				}
 
-            object[] bound = new object[this.parameters.Length];
-            for (int i = 0; i < this.parameters.Length; i++)
-            {
-                int argIndex = i + 1;
-                bound[i] = argIndex < args.argc
-                    ? ConsoleParser.Parse(args.Arg(argIndex), this.parameters[i].ParameterType)
-                    : this.defaults[i];
-            }
+				bound[i] = argIndex < command.argc
+					? ConsoleParser.Parse(command.Arg(argIndex), parameter.ParameterType)
+					: parameter.DefaultValue;
+				argIndex++;
+			}
 
-            return (this.method.Invoke(null, bound), null);
-        }
+			return (this.method.Invoke(null, bound), null);
+		}
 
-        public string GetSignature() {
-            string sig = string.Join(" ", this.parameters.Select(ConsoleCommand.ParamSignature));
-            return sig.Length > 0 ? $"{this.name} {sig}" : this.name;
-        }
+		public string GetSignature() {
+			string signature = string.Join(" ", this.parameters.Where(ConsoleCommand.IsBoundParam).Select(ConsoleCommand.ParamSignature));
+			return signature.Length > 0 ? $"{this.name} {signature}" : this.name;
+		}
 
-        private int RequiredArgCount() {
-            return this.parameters.Count(ConsoleCommand.IsRequiredParam);
-        }
+		#region PRIVATE METHODS
 
-        #region PRIVATE
+		private int RequiredArgCount() {
+			return this.parameters.Count(ConsoleCommand.IsRequiredParam);
+		}
 
-        private static object ParamDefault(ParameterInfo p) {
-            return p.DefaultValue;
-        }
+		private static string ParamSignature(ParameterInfo parameter) {
+			if (!parameter.HasDefaultValue) return $"<{parameter.ParameterType.Name} {parameter.Name}>";
 
-        private static string ParamSignature(ParameterInfo p) {
-            return p.HasDefaultValue ? $"[{p.ParameterType.Name} {p.Name}]" : $"<{p.ParameterType.Name} {p.Name}>";
-        }
+			string value = parameter.DefaultValue == null
+				? "null"
+				: Convert.ToString(parameter.DefaultValue, CultureInfo.InvariantCulture);
+			if (parameter.ParameterType == typeof(string) && parameter.DefaultValue != null) value = $"\"{value}\"";
+			return $"[{parameter.ParameterType.Name} {parameter.Name}={value}]";
+		}
 
-        private static bool IsRequiredParam(ParameterInfo p) {
-            return !p.HasDefaultValue;
-        }
+		private static bool IsBoundParam(ParameterInfo parameter) {
+			return parameter.ParameterType != typeof(CCommand);
+		}
 
-        #endregion
-    }
+		private static bool IsRequiredParam(ParameterInfo parameter) {
+			return ConsoleCommand.IsBoundParam(parameter) && !parameter.HasDefaultValue;
+		}
+
+		#endregion
+	}
 }

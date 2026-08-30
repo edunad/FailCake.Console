@@ -10,10 +10,17 @@ namespace FailCake.Console
 {
     public static class Console
     {
-        public static Func<CCommand, object, (bool success, string response)> OnCLCommand;
-        public static Func<CCommand, object, (bool success, string response)> OnSVCommand;
-        public static Func<object, bool> IsAdmin;
-        public static Func<bool> IsMultiplayer;
+        private static readonly Color RESPONSE_COLOR = new Color(0.58F, 0.58F, 0.58F);
+        #if UNITY_SERVER
+        private static Func<(string serverName, int playerCount, int publicCapacity)> TERMINAL_STATUS_PROVIDER = Console.GetDefaultTerminalStatus;
+        #endif
+
+        public static Func<CCommand, object, (bool success, string response)> OnCLCommand = Console.ExecuteClientLocal;
+        public static Func<CCommand, object, (bool success, string response)> OnSVCommand = Console.ExecuteServerLocal;
+		#if UNITY_SERVER
+		public static Func<object, bool> IsAdmin = Console.IsLocalAdmin;
+		#endif
+        public static Func<bool> IsMultiplayer = Console.IsOffline;
 
         #if UNITY_SERVER
         public const bool IS_SERVER_PROCESS = true;
@@ -24,6 +31,16 @@ namespace FailCake.Console
         public static void Scan() {
             ConsoleRegistry.Scan();
         }
+
+        #if UNITY_SERVER
+        public static void SetTerminalStatusProvider(Func<(string serverName, int playerCount, int publicCapacity)> provider) {
+            Console.TERMINAL_STATUS_PROVIDER = provider ?? Console.GetDefaultTerminalStatus;
+        }
+
+        public static void ResetTerminalStatusProvider() {
+            Console.TERMINAL_STATUS_PROVIDER = Console.GetDefaultTerminalStatus;
+        }
+        #endif
 
         public static void Execute(string line, ConsoleContext context) {
             ConsoleRegistry.Scan();
@@ -37,6 +54,10 @@ namespace FailCake.Console
 
         public static void Msg(string text, string category = "ENGINE") {
             ConsoleOutput.Add(text, category);
+        }
+
+        public static void Response(string text) {
+            ConsoleOutput.Add(text, "CONSOLE", Console.RESPONSE_COLOR);
         }
 
         public static void Warn(string text, string category = "ENGINE") {
@@ -62,23 +83,36 @@ namespace FailCake.Console
         }
 
         public static void SetLogIntercept(bool enable) {
-            if (enable)
-                Application.logMessageReceivedThreaded += Console.OnUnityLog;
-            else
-                Application.logMessageReceivedThreaded -= Console.OnUnityLog;
+            Application.logMessageReceivedThreaded -= Console.OnUnityLog;
+            if (enable) Application.logMessageReceivedThreaded += Console.OnUnityLog;
         }
+
+        public static void ResetNetworkHandlers() {
+            Console.OnCLCommand = Console.ExecuteClientLocal;
+            Console.OnSVCommand = Console.ExecuteServerLocal;
+            Console.IsMultiplayer = Console.IsOffline;
+        }
+
+        internal static void ResetHandlers() {
+            Console.ResetNetworkHandlers();
+
+			#if UNITY_SERVER
+			Console.IsAdmin = Console.IsLocalAdmin;
+            Console.ResetTerminalStatusProvider();
+            #endif
+        }
+
+        #if UNITY_SERVER
+        internal static (string serverName, int playerCount, int publicCapacity) GetTerminalStatus() {
+            return Console.TERMINAL_STATUS_PROVIDER();
+        }
+        #endif
 
         public static void OutputManifest(out string entries, out string replicatedValues) {
             ConsoleRegistry.Scan();
 
-            entries = string.Join("\n", ConsoleRegistry.GetAll()
-                .Where(Console.IsManifestVisible)
-                .Select(Console.FormatManifestEntry));
-
-            replicatedValues = string.Join("\n", ConsoleRegistry.GetAll()
-                .OfType<ConsoleVar>()
-                .Where(Console.IsManifestReplicated)
-                .Select(Console.FormatManifestValue));
+            entries = string.Join("\n", ConsoleRegistry.GetAll().Where(Console.IsManifestVisible).Select(Console.FormatManifestEntry));
+            replicatedValues = string.Join("\n", ConsoleRegistry.GetAll().OfType<ConsoleVar>().Where(Console.IsManifestReplicated).Select(Console.FormatManifestValue));
         }
 
         public static void ApplyManifest(string entries, string replicatedValues) {
@@ -98,7 +132,7 @@ namespace FailCake.Console
         }
 
         private static bool IsManifestVisible(ConsoleEntry entry) {
-            return !entry.HasFlag(FCVAR.HIDDEN);
+            return !entry.HasFlag(FCVAR.HIDDEN) && (entry.HasFlag(FCVAR.SERVER) || entry.HasFlag(FCVAR.REPLICATED));
         }
 
         private static string FormatManifestEntry(ConsoleEntry entry) {
@@ -113,10 +147,41 @@ namespace FailCake.Console
             return $"{cv.name}\x01{cv.GetString()}";
         }
 
+        private static (bool success, string response) ExecuteClientLocal(CCommand command, object userData) {
+            return (true, Console.ExecuteCaptured(command.GetCommandString(), ConsoleContext.ClientLocal(userData)));
+        }
+
+        private static (bool success, string response) ExecuteServerLocal(CCommand command, object userData) {
+            #if !UNITY_SERVER
+            return (false, "Not connected to server.");
+            #else
+            return (true, Console.ExecuteCaptured(command.GetCommandString(), ConsoleContext.ServerLocal(userData)));
+            #endif
+        }
+
+        private static bool IsOffline() {
+            return false;
+        }
+
+        #if UNITY_SERVER
+		private static bool IsLocalAdmin(object userData) {
+			return userData == null && !Console.IsMultiplayer();
+		}
+
+        private static (string serverName, int playerCount, int publicCapacity) GetDefaultTerminalStatus() {
+            return ("Starting server...", 0, 0);
+        }
+        #endif
+
         private static void OnUnityLog(string condition, string stackTrace, LogType type) {
             if (string.IsNullOrEmpty(condition)) return;
 
             (string text, string category) = Console.ParseLogCategory(condition);
+            #if UNITY_SERVER
+            if ((type == LogType.Error || type == LogType.Assert || type == LogType.Exception) &&
+                !string.IsNullOrWhiteSpace(stackTrace) && !text.Contains(stackTrace))
+                text += "\n" + stackTrace.TrimEnd();
+            #endif
 
             switch (type)
             {

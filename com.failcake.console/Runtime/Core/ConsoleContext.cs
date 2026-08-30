@@ -1,3 +1,9 @@
+#region
+
+using System;
+
+#endregion
+
 namespace FailCake.Console
 {
     public enum ConSource
@@ -28,6 +34,7 @@ namespace FailCake.Console
         }
 
         public static ConsoleContext Remote(object userData) {
+            if (userData == null) throw new ArgumentNullException(nameof(userData));
             return new ConsoleContext(ConSource.Remote, false, userData);
         }
 

@@ -1,86 +1,136 @@
 #region
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using UnityEngine;
 
 #endregion
 
-namespace FailCake.Console
-{
-    public static class ConsoleCfg
-    {
-        public static string ROOT_OVERRIDE;
+namespace FailCake.Console {
+	public static class ConsoleCfg {
+		#region STATIC
 
-        public static string GetRoot() {
-            if (ConsoleCfg.ROOT_OVERRIDE != null) return ConsoleCfg.ROOT_OVERRIDE;
+		public static string ROOT_OVERRIDE;
 
-            #if UNITY_SERVER
-            return Path.Combine(Application.dataPath, "..", "cfg");
-            #else
-            return Path.Combine(Application.persistentDataPath, "cfg");
-            #endif
-        }
+		#endregion
 
-        public static void BootExec() {
-            ConsoleCfg.Exec(Console.IS_SERVER_PROCESS ? "server.cfg" : "config.cfg", false);
-            ConsoleCfg.Exec("autoexec.cfg", false);
-        }
+		public static string GetRoot() {
+			if (ConsoleCfg.ROOT_OVERRIDE != null) return Path.GetFullPath(ConsoleCfg.ROOT_OVERRIDE);
+			#if UNITY_SERVER
+			return Path.GetFullPath(Path.Combine(Application.dataPath, "..", "cfg"));
+			#else
+			return Path.GetFullPath(Path.Combine(Application.persistentDataPath, "cfg"));
+			#endif
+		}
 
-        public static bool Exec(string file, bool logMissing = true) {
-            if (string.IsNullOrEmpty(file)) return false;
+		public static void BootExec() {
+			ConsoleCfg.Exec("config.cfg", false);
+			#if UNITY_SERVER
+			ConsoleCfg.Exec("server.cfg", false);
+			#endif
+			ConsoleCfg.Exec("autoexec.cfg", false);
+		}
 
-            string path = ConsoleCfg.ResolvePath(file);
-            if (!File.Exists(path))
-            {
-                if (logMissing) ConsoleOutput.Add($"exec: couldn't exec {file}");
-                return false;
-            }
+		public static bool Exec(string file, bool logMissing = true) {
+			if (string.IsNullOrEmpty(file)) return false;
 
-            ConsoleOutput.Add($"executing {file}");
+			string path = ConsoleCfg.ResolvePath(file);
+			if (!File.Exists(path)) {
+				if (logMissing) ConsoleOutput.Add($"exec: couldn't exec {file}");
+				return false;
+			}
 
-            ConsoleContext context = ConsoleContext.Config(Console.IS_SERVER_PROCESS);
-            foreach (string raw in File.ReadAllLines(path))
-            {
-                string line = raw.Trim();
-                if (line.Length == 0 || line.StartsWith("//")) continue;
+			ConsoleOutput.Add($"executing {file}");
 
-                ConsoleDispatcher.Execute(line, context);
-            }
+			ConsoleContext context = ConsoleContext.Config(Console.IS_SERVER_PROCESS);
+			foreach (string raw in File.ReadAllLines(path)) {
+				string line = raw.Trim();
+				if (line.Length == 0 || line.StartsWith("//")) continue;
 
-            return true;
-        }
+				ConsoleDispatcher.Execute(line, context);
+			}
 
-        public static void WriteConfig() {
-            string root = ConsoleCfg.GetRoot();
-            Directory.CreateDirectory(root);
-            string path = Path.Combine(root, "config.cfg");
+			return true;
+		}
 
-            IEnumerable<string> lines = ConsoleRegistry.GetAll()
-                .OfType<ConsoleVar>()
-                .Where(ConsoleCfg.IsArchivable)
-                .Select(ConsoleCfg.FormatLine);
+		public static void WriteConfig() {
+			string root = ConsoleCfg.GetRoot();
+			Directory.CreateDirectory(root);
+			string path = Path.Combine(root, "config.cfg");
+			string tempPath = path + ".tmp";
 
-            File.WriteAllLines(path, lines);
-            ConsoleOutput.Add($"host_writeconfig: wrote {path}");
-        }
+			IEnumerable<string> lines = ConsoleRegistry.GetAll()
+				.OfType<ConsoleVar>()
+				.Where(ConsoleCfg.IsArchivable)
+				.Select(ConsoleCfg.FormatLine);
 
-        public static string ResolvePath(string file) {
-            string name = file.EndsWith(".cfg") ? file : file + ".cfg";
-            return Path.Combine(ConsoleCfg.GetRoot(), name);
-        }
+			File.WriteAllLines(tempPath, lines);
+			if (File.Exists(path))
+				File.Replace(tempPath, path, null);
+			else
+				File.Move(tempPath, path);
+			ConsoleOutput.Add($"host_writeconfig: wrote {path}");
+		}
 
-        #region PRIVATE METHODS
+		public static string ResolvePath(string file) {
+			if (string.IsNullOrWhiteSpace(file)) throw new ArgumentException("Cfg filename cannot be empty.", nameof(file));
 
-        private static bool IsArchivable(ConsoleVar cv) {
-            return cv.HasFlag(FCVAR.ARCHIVE) && !cv.HasFlag(FCVAR.HIDDEN) && !cv.HasFlag(FCVAR.PROTECTED) && !cv.HasFlag(FCVAR.REPLICATED);
-        }
+			string trimmed = file.Trim();
+			if (Path.IsPathRooted(trimmed)) throw new ArgumentException("Cfg path must be relative to the cfg directory.", nameof(file));
 
-        private static string FormatLine(ConsoleVar cv) {
-            return $"\"{cv.name}\" \"{cv.GetString()}\"";
-        }
+			string name = trimmed.EndsWith(".cfg", StringComparison.OrdinalIgnoreCase) ? trimmed : trimmed + ".cfg";
+			string root = ConsoleCfg.GetRoot();
+			string path = Path.GetFullPath(Path.Combine(root, name));
+			string relative = Path.GetRelativePath(root, path);
 
-        #endregion
-    }
+			if (Path.IsPathRooted(relative) || relative == ".." || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+				relative.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal))
+				throw new ArgumentException("Cfg path must stay within the cfg directory.", nameof(file));
+
+			return path;
+		}
+
+		#region PRIVATE METHODS
+
+		private static bool IsArchivable(ConsoleVar cv) {
+			return cv.HasFlag(FCVAR.ARCHIVE) && !cv.HasFlag(FCVAR.HIDDEN) && !cv.HasFlag(FCVAR.PROTECTED) && !cv.HasFlag(FCVAR.REPLICATED);
+		}
+
+		private static string FormatLine(ConsoleVar cv) {
+			return $"\"{ConsoleCfg.Escape(cv.name)}\" \"{ConsoleCfg.Escape(cv.GetString())}\"";
+		}
+
+		private static string Escape(string value) {
+			StringBuilder result = new StringBuilder(value.Length);
+			for (int i = 0; i < value.Length; i++) {
+				switch (value[i]) {
+				case '\\':
+					result.Append("\\\\");
+					break;
+				case '"':
+					result.Append("\\\"");
+					break;
+				case '\r':
+					result.Append("\\r");
+					break;
+				case '\n':
+					result.Append("\\n");
+					break;
+				case '\t':
+					result.Append("\\t");
+					break;
+				default:
+					result.Append(value[i]);
+					break;
+				}
+			}
+
+			return result.ToString();
+		}
+
+		#endregion
+	}
 }

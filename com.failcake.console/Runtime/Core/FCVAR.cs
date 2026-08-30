@@ -16,6 +16,7 @@ namespace FailCake.Console
         REPLICATED = 1u << 13,
         CHEAT = 1u << 14,
         ADMIN = 1u << 26,
+        SERVER = 1u << 27,
         SERVER_CAN_EXECUTE = 1u << 28
     }
 }

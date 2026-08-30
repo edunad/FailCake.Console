@@ -17,6 +17,10 @@ namespace FailCake.Console
             this.OnLoad();
         }
 
+        internal void Unload() {
+            this.OnUnload();
+        }
+
         protected abstract void OnLoad();
         protected virtual void OnUnload() { }
     }
@@ -65,6 +69,14 @@ namespace FailCake.Console
             }
 
             ConsolePlugins.PENDING.Clear();
+        }
+
+        internal static void UnloadAll() {
+            for (int i = ConsolePlugins.LOADED.Count - 1; i >= 0; i--) ConsolePlugins.LOADED[i].Unload();
+
+            ConsolePlugins.LOADED.Clear();
+            ConsolePlugins.PENDING.Clear();
+            ConsolePlugins.SEEN.Clear();
         }
 
         private static int ComparePending(KeyValuePair<Type, int> a, KeyValuePair<Type, int> b) {
