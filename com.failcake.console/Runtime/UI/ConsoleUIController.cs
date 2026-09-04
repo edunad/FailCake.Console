@@ -1,4 +1,5 @@
 #if !UNITY_SERVER
+
 #region
 
 using System;
@@ -19,35 +20,45 @@ namespace FailCake.Console
     {
         #region STATIC
 
-        private static readonly Color PANEL_BG = new Color(0.14f, 0.14f, 0.14f, 0.95f);
-        private static readonly Color INPUT_BG = new Color(0.08f, 0.08f, 0.08f, 1f);
-        private static readonly Color INFO_COLOR = new Color(0.55f, 0.55f, 0.55f, 1f);
-        private static readonly Color PLACEHOLDER_COLOR = new Color(0.48f, 0.48f, 0.48f, 1f);
-        private static readonly Color INPUT_COLOR = new Color(0.95f, 0.95f, 0.95f, 1f);
+        private static readonly Color FRAME_COLOR = Color.black;
+        private static readonly Color PANEL_BG = new Color(0.23f, 0.27f, 0.21f, 1f);
+        private static readonly Color TITLE_BG = new Color(0.29f, 0.35f, 0.27f, 1f);
+        private static readonly Color TITLE_COLOR = new Color(0.86f, 0.88f, 0.81f, 1f);
+        private static readonly Color INPUT_BG = new Color(0.19f, 0.23f, 0.18f, 1f);
+        private static readonly Color PLACEHOLDER_COLOR = new Color(0.57f, 0.61f, 0.53f, 1f);
+        private static readonly Color INPUT_COLOR = new Color(0.88f, 0.89f, 0.83f, 1f);
 
-        private static readonly Color SUGGEST_BG_NORMAL = new Color(0.12f, 0.12f, 0.12f, 1f);
-        private static readonly Color SUGGEST_BG_SELECTED = new Color(0.24f, 0.24f, 0.25f, 1f);
-        private static readonly Color SUGGEST_BORDER = new Color(0.08f, 0.08f, 0.08f, 1f);
-        private static readonly Color SUGGEST_TITLE = new Color(0.9f, 0.9f, 0.9f, 1f);
-        private static readonly Color SUGGEST_VAL_COLOR = new Color(0.4f, 0.8f, 0.4f, 1f);
+        private static readonly Color SUGGEST_BG_NORMAL = new Color(0.20f, 0.24f, 0.18f, 1f);
+        private static readonly Color SUGGEST_BG_SELECTED = new Color(0.34f, 0.40f, 0.30f, 1f);
+        private static readonly Color SUGGEST_BORDER = Color.black;
+        private static readonly Color SUGGEST_TITLE = new Color(0.87f, 0.88f, 0.82f, 1f);
+        private static readonly Color SUGGEST_VAL_COLOR = new Color(0.62f, 0.76f, 0.53f, 1f);
+        private static readonly Color SUGGEST_INFO_COLOR = new Color(0.45f, 0.47f, 0.41f, 1f);
 
-        private static readonly Color LOG_SEPARATOR_BG = Color.black;
-        private static readonly Color LOG_ROW_BG_1 = new Color(0.11f, 0.11f, 0.11f, 1f);
-        private static readonly Color LOG_ROW_BG_2 = new Color(0.095f, 0.095f, 0.095f, 1f);
+        private static readonly Color LOG_SEPARATOR_BG = new Color(0.07f, 0.08f, 0.06f, 1f);
+        private static readonly Color LOG_ROW_BG_1 = new Color(0.23f, 0.27f, 0.21f, 1f);
+        private static readonly Color LOG_ROW_BG_2 = new Color(0.20f, 0.23f, 0.18f, 1f);
 
-        private static readonly Color LOG_TIME_BG = new Color(0.13f, 0.16f, 0.14f, 1f);
-        private static readonly Color LOG_CAT_BG = new Color(0.18f, 0.12f, 0.16f, 1f);
+        private static readonly Color LOG_TIME_BG = new Color(0.21f, 0.25f, 0.19f, 1f);
+        private static readonly Color LOG_CAT_BG = new Color(0.17f, 0.20f, 0.16f, 1f);
 
-        private static readonly Color LOG_TIME_COLOR = new Color(0.51f, 0.59f, 0.44f, 1f);
-        private static readonly Color LOG_CAT_COLOR = new Color(0.6f, 0.36f, 0.5f, 1f);
-        private static readonly Color LOG_MSG_COLOR = new Color(0.83f, 0.83f, 0.83f, 1f);
+        private static readonly Color LOG_TIME_COLOR = new Color(0.64f, 0.69f, 0.57f, 1f);
+        private static readonly Color LOG_CAT_COLOR = new Color(0.75f, 0.71f, 0.52f, 1f);
+        private static readonly Color LOG_MSG_COLOR = new Color(0.82f, 0.83f, 0.77f, 1f);
 
-        private static readonly Color SCROLLBAR_BG = new Color(0.09f, 0.09f, 0.09f, 1f);
-        private static readonly Color SCROLLBAR_HANDLE = new Color(0.22f, 0.22f, 0.23f, 1f);
+        private static readonly Color SCROLLBAR_BG = new Color(0.18f, 0.22f, 0.17f, 1f);
+        private static readonly Color SCROLLBAR_HANDLE = new Color(0.40f, 0.46f, 0.35f, 1f);
+
+        private static readonly Vector2 WINDOW_SIZE = new Vector2(920F, 600f);
 
         private const int FONT_SIZE = 13;
-        private const int MAX_SUGGESTIONS = 10;
+        private const int MAX_SUGGESTIONS = 8;
         private const int MAX_HISTORY = 64;
+
+        private const float FRAME_WIDTH = 2f;
+        private const float TITLE_HEIGHT = 24f;
+        private const float INPUT_HEIGHT = 28f;
+        private const float WINDOW_MARGIN = 18f;
 
         private const float BASE_ROW_HEIGHT = 24f;
         private const float MSG_PADDING_X = 196f;
@@ -64,18 +75,20 @@ namespace FailCake.Console
             if (font) ConsoleUIController.CACHED_FONT = TMP_FontAsset.CreateFontAsset(font);
 
             if (!ConsoleUIController.CACHED_FONT) ConsoleUIController.CACHED_FONT = TMP_Settings.defaultFontAsset;
-            ConsoleUIController.CACHED_FONT.material.EnableKeyword("OUTLINE_ON");
-            ConsoleUIController.CACHED_FONT.material.SetFloat("_OutlineWidth", 0.1f);
-            ConsoleUIController.CACHED_FONT.material.SetColor("_OutlineColor", Color.black);
+            ConsoleUIController.CACHED_FONT.material.EnableKeyword("UNDERLAY_ON");
+
+            ConsoleUIController.CACHED_FONT.material.SetFloat("_UnderlayOffsetX", 0.3f);
+            ConsoleUIController.CACHED_FONT.material.SetFloat("_UnderlayOffsetY", -0.3f);
+            ConsoleUIController.CACHED_FONT.material.SetFloat("_UnderlayDilate", 0.15f);
+            ConsoleUIController.CACHED_FONT.material.SetFloat("_UnderlaySoftness", 0f);
+            ConsoleUIController.CACHED_FONT.material.SetColor("_UnderlayColor", Color.black);
 
             return ConsoleUIController.CACHED_FONT;
         }
 
         #endregion
 
-        public TMP_FontAsset fontOverride;
-
-        #region PRIVATE FIELDS
+        #region PRIVATE
 
         private TMP_FontAsset _font;
 
@@ -140,6 +153,78 @@ namespace FailCake.Console
             }
         }
 
+        private sealed class WindowDragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler
+        {
+            #region PRIVATE
+
+            private readonly Vector3[] _corners = new Vector3[4];
+            private RectTransform _window;
+            private Canvas _canvas;
+            private Action _onFocus;
+            private Vector2 _canvasSize;
+            private bool _dragging;
+
+            #endregion
+
+            private void LateUpdate() {
+                if (!this._window || !this._canvas) return;
+                Vector2 canvasSize = ((RectTransform)this._canvas.transform).rect.size;
+                if (canvasSize == this._canvasSize) return;
+                this._canvasSize = canvasSize;
+                this.ClampToCanvas();
+            }
+
+            public void Initialize(RectTransform window, Canvas canvas, Action onFocus) {
+                this._window = window;
+                this._canvas = canvas.rootCanvas;
+                this._onFocus = onFocus;
+            }
+
+            public void OnBeginDrag(PointerEventData eventData) {
+                this._dragging = eventData.button == PointerEventData.InputButton.Left;
+            }
+
+            public void OnDrag(PointerEventData eventData) {
+                if (!this._dragging || !this._window || !this._canvas || this._canvas.scaleFactor <= 0f) return;
+                this._window.anchoredPosition += eventData.delta / this._canvas.scaleFactor;
+                this.ClampToCanvas();
+            }
+
+            public void OnEndDrag(PointerEventData eventData) {
+                this._dragging = false;
+                this._onFocus?.Invoke();
+            }
+
+            public void OnPointerClick(PointerEventData eventData) {
+                this._onFocus?.Invoke();
+            }
+
+            #region PRIVATE
+
+            private void ClampToCanvas() {
+                if (!this._window || !this._canvas || this._window.parent is not RectTransform parent) return;
+                this._window.GetWorldCorners(this._corners);
+
+                Vector2 min = parent.InverseTransformPoint(this._corners[0]);
+                Vector2 max = parent.InverseTransformPoint(this._corners[2]);
+
+                Rect area = parent.rect;
+                Vector2 shift = Vector2.zero;
+
+                if (min.x < area.xMin)
+                    shift.x = area.xMin - min.x;
+                else if (max.x > area.xMax) shift.x = area.xMax - max.x;
+
+                if (min.y < area.yMin)
+                    shift.y = area.yMin - min.y;
+                else if (max.y > area.yMax) shift.y = area.yMax - max.y;
+
+                this._window.anchoredPosition += shift;
+            }
+
+            #endregion
+        }
+
         private readonly List<OverlayEntry> _overlayEntries = new List<OverlayEntry>();
 
         #endregion
@@ -148,8 +233,7 @@ namespace FailCake.Console
         public event Action OnDeactivate;
 
         private void Awake() {
-            this._font = this.fontOverride;
-            if (!this._font) this._font = ConsoleUIController.LoadFont();
+            this._font = ConsoleUIController.LoadFont();
             if (!this._font) throw new UnityException("Console font missing");
 
             if (!Object.FindAnyObjectByType<EventSystem>()) throw new UnityException("Console requires an EventSystem in the scene");
@@ -228,11 +312,8 @@ namespace FailCake.Console
             this.UpdateContentHeight();
             this.RefreshVirtualRows();
 
-            if (this._inputField)
-            {
-                this._inputField.text = string.Empty;
-                this._inputField.ActivateInputField();
-            }
+            if (this._inputField) this._inputField.text = string.Empty;
+            this.FocusInput();
 
             this._scrollToBottom = true;
             this.OnActivate?.Invoke();
@@ -265,7 +346,7 @@ namespace FailCake.Console
             string line = this._inputField.text;
             if (string.IsNullOrWhiteSpace(line))
             {
-                this._inputField.ActivateInputField();
+                this.FocusInput();
                 return;
             }
 
@@ -273,7 +354,7 @@ namespace FailCake.Console
             Console.Execute(line, ConsoleContext.Local());
 
             this._inputField.text = string.Empty;
-            this._inputField.ActivateInputField();
+            this.FocusInput();
             this._scrollToBottom = true;
         }
 
@@ -354,8 +435,7 @@ namespace FailCake.Console
             this._suggestionIndex = index;
             this.RenderSuggestions();
 
-            this._inputField.ActivateInputField();
-            this._inputField.caretPosition = this._inputField.text.Length;
+            this.FocusInput();
         }
 
         private void OnSuggestionHover(int index) {
@@ -390,14 +470,14 @@ namespace FailCake.Console
             this._historyCursor = Math.Clamp(this._historyCursor - direction, 0, this._history.Count);
             this._inputField.text = this._historyCursor >= this._history.Count ? string.Empty : this._history[this._historyCursor];
 
-            this._inputField.ActivateInputField();
-            this._inputField.caretPosition = this._inputField.text.Length;
+            this.FocusInput();
         }
 
         private void SyncExistingLogs() {
             this._masterLogs.Clear();
             this._rowHeights.Clear();
             this._masterLogs.AddRange(ConsoleOutput.GetLines());
+
             this.UpdateContentHeight();
             this.RefreshVirtualRows();
         }
@@ -414,11 +494,12 @@ namespace FailCake.Console
                 });
             }
 
-			int excess = this._masterLogs.Count - ConsoleOutput.MAX_LINES;
-			if (excess > 0) {
-				this._masterLogs.RemoveRange(0, excess);
-				this._rowHeights.Clear();
-			}
+            int excess = this._masterLogs.Count - ConsoleOutput.MAX_LINES;
+            if (excess > 0)
+            {
+                this._masterLogs.RemoveRange(0, excess);
+                this._rowHeights.Clear();
+            }
 
             this.UpdateContentHeight();
             this.RefreshVirtualRows();
@@ -440,6 +521,7 @@ namespace FailCake.Console
 
         private void UpdateContentHeight() {
             if (!this._contentRt) return;
+
             float totalHeight = 0f;
             for (int i = 0; i < this._masterLogs.Count; i++) totalHeight += this.GetRowHeight(i);
             this._contentRt.sizeDelta = new Vector2(this._contentRt.sizeDelta.x, totalHeight);
@@ -451,14 +533,14 @@ namespace FailCake.Console
             float msgWidth = this._contentRt.rect.width - ConsoleUIController.MSG_PADDING_X;
             if (msgWidth <= 16f) return ConsoleUIController.BASE_ROW_HEIGHT;
 
-			float messageHeight = row.msgText.GetPreferredValues(line.text, msgWidth, 0F).y;
-			float categoryHeight = row.catText.GetPreferredValues(line.category, row.catText.rectTransform.rect.width, 0F).y;
-			return Mathf.Max(ConsoleUIController.BASE_ROW_HEIGHT, Mathf.Max(messageHeight, categoryHeight) + ConsoleUIController.MSG_PADDING_Y);
+            float messageHeight = row.msgText.GetPreferredValues(line.text, msgWidth, 0F).y;
+            float categoryHeight = row.catText.GetPreferredValues(line.category, row.catText.rectTransform.rect.width, 0F).y;
+
+            return Mathf.Max(ConsoleUIController.BASE_ROW_HEIGHT, Mathf.Max(messageHeight, categoryHeight) + ConsoleUIController.MSG_PADDING_Y);
         }
 
         private float GetRowHeight(int index) {
-            if (this._rowHeights.TryGetValue(index, out float cached)) return cached;
-            return ConsoleUIController.BASE_ROW_HEIGHT; // Fallback estimate until rendered and measured
+            return this._rowHeights.GetValueOrDefault(index, ConsoleUIController.BASE_ROW_HEIGHT);
         }
 
         private float GetYPositionForIndex(int index) {
@@ -482,7 +564,6 @@ namespace FailCake.Console
 
             float scrollY = Mathf.Max(0f, this._contentRt.rect.height - this._viewportRt.rect.height + this._contentRt.anchoredPosition.y);
 
-            // Find starting index based on variable heights
             int startIndex = 0;
             float accumulatedHeight = 0f;
             for (int i = 0; i < this._masterLogs.Count; i++)
@@ -511,8 +592,6 @@ namespace FailCake.Console
 
                     row.root.SetActive(true);
                     row.dataIndex = dataIndex;
-
-                    // Bind data
                     row.background.color = dataIndex % 2 == 0 ? ConsoleUIController.LOG_ROW_BG_1 : ConsoleUIController.LOG_ROW_BG_2;
                     row.separatorLine.color = ConsoleUIController.LOG_SEPARATOR_BG;
 
@@ -521,13 +600,10 @@ namespace FailCake.Console
                     row.msgText.text = line.text;
                     row.msgText.color = line.color ?? ConsoleUIController.LOG_MSG_COLOR;
 
-                    // Position absolutely
                     float yPos = -this.GetYPositionForIndex(dataIndex);
                     row.rectTransform.anchoredPosition = new Vector2(0f, yPos);
 
-                    // Measure wrapped height at the exact message column width (row VLG padding: 188 left + 8 right)
                     float finalRowHeight = this.MeasureRowHeight(row, line);
-
                     row.rectTransform.sizeDelta = new Vector2(0f, finalRowHeight);
 
                     if (!this._rowHeights.TryGetValue(dataIndex, out float currentH) || Mathf.Abs(currentH - finalRowHeight) > 0.5f)
@@ -541,12 +617,15 @@ namespace FailCake.Console
             }
 
             if (!heightChanged) return;
+
             this.UpdateContentHeight();
+
             foreach (VirtualRow row in this._pool)
                 if (row.root.activeSelf)
                     row.rectTransform.anchoredPosition = new Vector2(0f, -this.GetYPositionForIndex(row.dataIndex));
         }
 
+        // TODO: Replace with UIToolkit
         private VirtualRow CreateVirtualRow() {
             GameObject rowGo = ConsoleUIController.CreateRect("VirtualLogRow", this._logContent.transform, new Vector2(0, 1), new Vector2(1, 1), Vector2.zero, Vector2.zero);
             RectTransform rt = (RectTransform)rowGo.transform;
@@ -570,7 +649,6 @@ namespace FailCake.Console
             GameObject timeBgGo = ConsoleUIController.CreateRect("TimeBg", leftCol.transform, new Vector2(0, 0), new Vector2(0, 1), new Vector2(0, 0), new Vector2(80, 0));
             Image timeBg = timeBgGo.AddComponent<Image>();
             timeBg.color = ConsoleUIController.LOG_TIME_BG;
-
 
             GameObject catBgGo = ConsoleUIController.CreateRect("CatBg", leftCol.transform, new Vector2(0, 0), new Vector2(0, 1), new Vector2(80, 0), new Vector2(180, 0));
             Image catBg = catBgGo.AddComponent<Image>();
@@ -638,6 +716,7 @@ namespace FailCake.Console
             return ColorUtility.ToHtmlStringRGB(c);
         }
 
+        // TODO: Replace with UIToolkit
         private void BuildUI() {
             GameObject canvasGo = new GameObject("Console", typeof(RectTransform));
             canvasGo.transform.SetParent(this.transform, false);
@@ -660,7 +739,7 @@ namespace FailCake.Console
             if (!canvasGo.AddComponent<GraphicRaycaster>()) throw new UnityException("Failed to add GraphicRaycaster");
 
             this.BuildOverlay(canvasGo.transform);
-            this.BuildPanel(canvasGo.transform);
+            this.BuildPanel(canvasGo.transform, canvas);
         }
 
         private void BuildOverlay(Transform parent) {
@@ -676,11 +755,33 @@ namespace FailCake.Console
             this._overlayText.raycastTarget = false;
         }
 
-        private void BuildPanel(Transform parent) {
-            this._panel = ConsoleUIController.CreateRect("Panel", parent, new Vector2(0f, 0f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
+        // TODO: Replace with UIToolkit
+        private void BuildPanel(Transform parent, Canvas canvas) {
+            this._panel = ConsoleUIController.CreateRect("Panel", parent, new Vector2(1f, 1f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
 
-            Image bg = this._panel.AddComponent<Image>();
-            bg.color = ConsoleUIController.PANEL_BG;
+            RectTransform panelRect = (RectTransform)this._panel.transform;
+            panelRect.pivot = new Vector2(1f, 1f);
+            panelRect.anchoredPosition = new Vector2(-ConsoleUIController.WINDOW_MARGIN, -ConsoleUIController.WINDOW_MARGIN);
+            panelRect.sizeDelta = ConsoleUIController.WINDOW_SIZE;
+
+            Image frame = this._panel.AddComponent<Image>();
+            frame.color = ConsoleUIController.FRAME_COLOR;
+
+            GameObject body = ConsoleUIController.CreateRect("Body", this._panel.transform, Vector2.zero, Vector2.one, Vector2.one * ConsoleUIController.FRAME_WIDTH, Vector2.one * -ConsoleUIController.FRAME_WIDTH);
+            body.AddComponent<Image>().color = ConsoleUIController.PANEL_BG;
+
+            GameObject titleBar = ConsoleUIController.CreateRect("TitleBar", this._panel.transform, new Vector2(0f, 1f), Vector2.one, new Vector2(ConsoleUIController.FRAME_WIDTH, -ConsoleUIController.TITLE_HEIGHT - ConsoleUIController.FRAME_WIDTH),
+                new Vector2(-ConsoleUIController.FRAME_WIDTH, -ConsoleUIController.FRAME_WIDTH));
+            titleBar.AddComponent<Image>().color = ConsoleUIController.TITLE_BG;
+            titleBar.AddComponent<WindowDragHandler>().Initialize(panelRect, canvas, this.FocusInput);
+
+            GameObject titleSeparator = ConsoleUIController.CreateRect("BottomSeparator", titleBar.transform, Vector2.zero, new Vector2(1f, 0f), Vector2.zero, new Vector2(0f, 2f));
+            titleSeparator.AddComponent<Image>().color = ConsoleUIController.LOG_SEPARATOR_BG;
+
+            GameObject titleTextGo = ConsoleUIController.CreateRect("Title", titleBar.transform, Vector2.zero, Vector2.one, new Vector2(7f, 0f), new Vector2(-7f, 0f));
+            TMP_Text titleText = titleTextGo.AddComponent<TextMeshProUGUI>();
+            this.StyleText(titleText, 12, ConsoleUIController.TITLE_COLOR, TextAlignmentOptions.MidlineLeft);
+            titleText.text = "CONSOLE";
 
             this.BuildLog(this._panel.transform);
             this.BuildInput(this._panel.transform);
@@ -688,7 +789,8 @@ namespace FailCake.Console
         }
 
         private void BuildLog(Transform parent) {
-            GameObject scrollGo = ConsoleUIController.CreateRect("LogScroll", parent, Vector2.zero, Vector2.one, new Vector2(0f, 30f), new Vector2(0f, 0f));
+            GameObject scrollGo = ConsoleUIController.CreateRect("LogScroll", parent, Vector2.zero, Vector2.one, new Vector2(ConsoleUIController.FRAME_WIDTH, ConsoleUIController.INPUT_HEIGHT + ConsoleUIController.FRAME_WIDTH),
+                new Vector2(-ConsoleUIController.FRAME_WIDTH, -ConsoleUIController.TITLE_HEIGHT - ConsoleUIController.FRAME_WIDTH));
 
             this._scrollRect = scrollGo.AddComponent<ScrollRect>();
             this._scrollRect.horizontal = false;
@@ -714,6 +816,8 @@ namespace FailCake.Console
             this._scrollRect.verticalScrollbar = scrollbar;
             this._scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
 
+            ConsoleUIController.CreateRect("LeftBorder", scrollbarGo.transform, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(2f, 0f)).AddComponent<Image>().color = Color.black;
+
             GameObject viewport = ConsoleUIController.CreateRect("Viewport", scrollGo.transform, Vector2.zero, Vector2.one, new Vector2(0f, 0f), new Vector2(-12f, 0f));
             viewport.AddComponent<RectMask2D>();
             this._viewportRt = (RectTransform)viewport.transform;
@@ -725,7 +829,7 @@ namespace FailCake.Console
             this._scrollRect.content = this._contentRt;
 
             Image contentBg = this._logContent.AddComponent<Image>();
-            contentBg.color = new Color(0f, 0f, 0f, 0f);
+            contentBg.color = ConsoleUIController.LOG_SEPARATOR_BG;
 
             this._scrollRect.onValueChanged.AddListener(this.OnScrollValueChanged);
 
@@ -733,7 +837,8 @@ namespace FailCake.Console
         }
 
         private void BuildSuggestions(Transform parent) {
-            this._suggestionsContainer = ConsoleUIController.CreateRect("Suggestions", parent, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 30f), new Vector2(0f, 30f));
+            this._suggestionsContainer = ConsoleUIController.CreateRect("Suggestions", parent, Vector2.zero, new Vector2(1f, 0f), new Vector2(ConsoleUIController.FRAME_WIDTH, ConsoleUIController.INPUT_HEIGHT + ConsoleUIController.FRAME_WIDTH),
+                new Vector2(-ConsoleUIController.FRAME_WIDTH, ConsoleUIController.INPUT_HEIGHT + ConsoleUIController.FRAME_WIDTH));
 
             RectTransform rt = (RectTransform)this._suggestionsContainer.transform;
             rt.pivot = new Vector2(0.5f, 0f);
@@ -783,7 +888,7 @@ namespace FailCake.Console
 
                 GameObject descGo = ConsoleUIController.CreateRect("Desc", rowGo.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
                 TMP_Text descText = descGo.AddComponent<TextMeshProUGUI>();
-                this.StyleText(descText, 12, ConsoleUIController.INFO_COLOR, TextAlignmentOptions.TopLeft);
+                this.StyleText(descText, 12, ConsoleUIController.SUGGEST_INFO_COLOR, TextAlignmentOptions.TopLeft);
 
                 this._suggestionRows.Add(new SuggestionRow {
                     root = rowGo,
@@ -799,16 +904,19 @@ namespace FailCake.Console
         }
 
         private void BuildInput(Transform parent) {
-            GameObject inputGo = ConsoleUIController.CreateRect("InputBar", parent, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(0f, 30f));
+            GameObject inputGo = ConsoleUIController.CreateRect("InputBar", parent, Vector2.zero, new Vector2(1f, 0f), new Vector2(ConsoleUIController.FRAME_WIDTH, ConsoleUIController.FRAME_WIDTH),
+                new Vector2(-ConsoleUIController.FRAME_WIDTH, ConsoleUIController.INPUT_HEIGHT + ConsoleUIController.FRAME_WIDTH));
 
             Image inputBg = inputGo.AddComponent<Image>();
             inputBg.color = ConsoleUIController.INPUT_BG;
+
+            ConsoleUIController.CreateRect("TopBorder", inputGo.transform, new Vector2(0f, 1f), Vector2.one, new Vector2(0f, -2f), Vector2.zero).AddComponent<Image>().color = Color.black;
 
             GameObject prefixGo = ConsoleUIController.CreateRect("Prefix", inputGo.transform, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(8f, 0f), new Vector2(24f, 0f));
             TMP_Text prefixText = prefixGo.AddComponent<TextMeshProUGUI>();
             this.StyleText(prefixText, ConsoleUIController.FONT_SIZE, ConsoleUIController.PLACEHOLDER_COLOR, TextAlignmentOptions.Left);
             prefixText.alignment = TextAlignmentOptions.MidlineLeft;
-            prefixText.text = ">";
+            prefixText.text = "]";
             prefixText.raycastTarget = false;
 
             GameObject textArea = ConsoleUIController.CreateRect("Text Area", inputGo.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(30f, 0f), new Vector2(-8f, 0f));
@@ -841,6 +949,13 @@ namespace FailCake.Console
             text.richText = true;
             text.textWrappingMode = TextWrappingModes.PreserveWhitespace;
             text.raycastTarget = false;
+        }
+
+        private void FocusInput() {
+            if (!this._isActive || !this._inputField) return;
+
+            this._inputField.ActivateInputField();
+            this._inputField.caretPosition = this._inputField.text.Length;
         }
 
         private static GameObject CreateRect(string name, Transform parent, Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax) {
