@@ -26,14 +26,14 @@ namespace FailCake.Console
         private static readonly Color TITLE_COLOR = new Color(0.86f, 0.88f, 0.81f, 1f);
         private static readonly Color INPUT_BG = new Color(0.19f, 0.23f, 0.18f, 1f);
         private static readonly Color PLACEHOLDER_COLOR = new Color(0.57f, 0.61f, 0.53f, 1f);
-        private static readonly Color INPUT_COLOR = new Color(0.88f, 0.89f, 0.83f, 1f);
+        private static readonly Color INPUT_COLOR = Color.white;
 
-        private static readonly Color SUGGEST_BG_NORMAL = new Color(0.20f, 0.24f, 0.18f, 1f);
-        private static readonly Color SUGGEST_BG_SELECTED = new Color(0.34f, 0.40f, 0.30f, 1f);
+        private static readonly Color SUGGEST_BG_NORMAL = new Color(0.12f, 0.14f, 0.12f, 1f);
+        private static readonly Color SUGGEST_BG_SELECTED = new Color(0.09f, 0.11f, 0.08f, 1f);
         private static readonly Color SUGGEST_BORDER = Color.black;
-        private static readonly Color SUGGEST_TITLE = new Color(0.87f, 0.88f, 0.82f, 1f);
-        private static readonly Color SUGGEST_VAL_COLOR = new Color(0.62f, 0.76f, 0.53f, 1f);
-        private static readonly Color SUGGEST_INFO_COLOR = new Color(0.45f, 0.47f, 0.41f, 1f);
+        private static readonly Color SUGGEST_TITLE = Color.white;
+        private static readonly Color SUGGEST_VAL_COLOR = new Color(0.43f, 0.88f, 0.52f, 1f);
+        private static readonly Color SUGGEST_INFO_COLOR = new Color(0.52f, 0.52f, 0.52f, 1f);
 
         private static readonly Color LOG_SEPARATOR_BG = new Color(0.07f, 0.08f, 0.06f, 1f);
         private static readonly Color LOG_ROW_BG_1 = new Color(0.23f, 0.27f, 0.21f, 1f);
@@ -44,6 +44,16 @@ namespace FailCake.Console
 
         private static readonly Color LOG_TIME_COLOR = new Color(0.64f, 0.69f, 0.57f, 1f);
         private static readonly Color LOG_CAT_COLOR = new Color(0.75f, 0.71f, 0.52f, 1f);
+        private static readonly Color[] CATEGORY_COLORS = {
+            new Color(0.48f, 0.74f, 0.95f, 1f),
+            new Color(0.55f, 0.82f, 0.43f, 1f),
+            new Color(0.72f, 0.58f, 0.90f, 1f),
+            new Color(0.38f, 0.82f, 0.77f, 1f),
+            new Color(0.45f, 0.65f, 0.90f, 1f),
+            new Color(0.62f, 0.82f, 0.52f, 1f),
+            new Color(0.48f, 0.78f, 0.88f, 1f)
+        };
+
         private static readonly Color LOG_MSG_COLOR = new Color(0.82f, 0.83f, 0.77f, 1f);
 
         private static readonly Color SCROLLBAR_BG = new Color(0.18f, 0.22f, 0.17f, 1f);
@@ -84,6 +94,13 @@ namespace FailCake.Console
             ConsoleUIController.CACHED_FONT.material.SetColor("_UnderlayColor", Color.black);
 
             return ConsoleUIController.CACHED_FONT;
+        }
+
+        private static Color GetCategoryColor(string category) {
+            if (string.IsNullOrEmpty(category)) return ConsoleUIController.LOG_CAT_COLOR;
+            uint hash = 2166136261;
+            for (int i = 0; i < category.Length; i++) hash = unchecked((hash ^ category[i]) * 16777619);
+            return ConsoleUIController.CATEGORY_COLORS[(int)(hash % (uint)ConsoleUIController.CATEGORY_COLORS.Length)];
         }
 
         #endregion
@@ -311,8 +328,6 @@ namespace FailCake.Console
             this._rowHeights.Clear();
             this.UpdateContentHeight();
             this.RefreshVirtualRows();
-
-            if (this._inputField) this._inputField.text = string.Empty;
             this.FocusInput();
 
             this._scrollToBottom = true;
@@ -596,7 +611,9 @@ namespace FailCake.Console
                     row.separatorLine.color = ConsoleUIController.LOG_SEPARATOR_BG;
 
                     row.timeText.text = line.timestamp;
+                    row.timeText.color = ConsoleUIController.LOG_TIME_COLOR;
                     row.catText.text = line.category;
+                    row.catText.color = ConsoleUIController.GetCategoryColor(line.category);
                     row.msgText.text = line.text;
                     row.msgText.color = line.color ?? ConsoleUIController.LOG_MSG_COLOR;
 
@@ -728,6 +745,7 @@ namespace FailCake.Console
 
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 100;
+            canvas.pixelPerfect = true;
 
             CanvasScaler scaler = canvasGo.AddComponent<CanvasScaler>();
             if (!scaler) throw new UnityException("Failed to add CanvasScaler");
@@ -816,7 +834,7 @@ namespace FailCake.Console
             this._scrollRect.verticalScrollbar = scrollbar;
             this._scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
 
-            ConsoleUIController.CreateRect("LeftBorder", scrollbarGo.transform, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(2f, 0f)).AddComponent<Image>().color = Color.black;
+            ConsoleUIController.CreateRect("LeftBorder", scrollbarGo.transform, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(1f, 0f)).AddComponent<Image>().color = Color.black;
 
             GameObject viewport = ConsoleUIController.CreateRect("Viewport", scrollGo.transform, Vector2.zero, Vector2.one, new Vector2(0f, 0f), new Vector2(-12f, 0f));
             viewport.AddComponent<RectMask2D>();
@@ -852,7 +870,11 @@ namespace FailCake.Console
             vlg.childForceExpandWidth = true;
             vlg.childForceExpandHeight = false;
             vlg.spacing = 1f;
-            vlg.padding = new RectOffset(1, 1, 1, 0);
+            vlg.padding = new RectOffset(0, 1, 1, 0);
+
+            GameObject topBorder = ConsoleUIController.CreateRect("TopBorder", this._suggestionsContainer.transform, new Vector2(0f, 1f), Vector2.one, new Vector2(0f, -1f), Vector2.zero);
+            topBorder.AddComponent<Image>().color = Color.black;
+            topBorder.AddComponent<LayoutElement>().ignoreLayout = true;
 
             ContentSizeFitter csf = this._suggestionsContainer.AddComponent<ContentSizeFitter>();
             csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
@@ -910,7 +932,7 @@ namespace FailCake.Console
             Image inputBg = inputGo.AddComponent<Image>();
             inputBg.color = ConsoleUIController.INPUT_BG;
 
-            ConsoleUIController.CreateRect("TopBorder", inputGo.transform, new Vector2(0f, 1f), Vector2.one, new Vector2(0f, -2f), Vector2.zero).AddComponent<Image>().color = Color.black;
+            ConsoleUIController.CreateRect("TopBorder", inputGo.transform, new Vector2(0f, 1f), Vector2.one, new Vector2(0f, -1f), Vector2.zero).AddComponent<Image>().color = Color.black;
 
             GameObject prefixGo = ConsoleUIController.CreateRect("Prefix", inputGo.transform, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(8f, 0f), new Vector2(24f, 0f));
             TMP_Text prefixText = prefixGo.AddComponent<TextMeshProUGUI>();

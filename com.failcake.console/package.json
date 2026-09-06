@@ -1,7 +1,7 @@
 {
   "name": "com.failcake.console",
   "displayName": "FailCake Console",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "unity": "6000.5",
   "description": "Custom Console. Inspired in source engine",
   "type": "library",
@@ -13,5 +13,5 @@
     "name": "FailCake",
     "url": "https://github.com/edunad/FailCake.Console"
   },
-  "_fingerprint": "5315495c33c8a7e3401478250ae8a54f714bbfe7"
+  "_fingerprint": "5970b15262cbee240e6dfe66b3ee9a4a803445b1"
 }
